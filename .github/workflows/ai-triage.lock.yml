@@ -61,7 +61,7 @@ name: "AI: Triage"
   # permissions: # Permissions applied to pre-activation job
     # contents: read
   schedule:
-  - cron: "9 8 * * *"
+  - cron: "5 8 * * *"
     # Friendly format: daily around 8am utc (scattered)
   # steps: # Steps injected into pre-activation job
   # - name: Checkout the select-copilot-pat action folder
