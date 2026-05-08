@@ -29,6 +29,14 @@ safe-outputs:
     title-prefix: "[MCP: SEP Tracker] "
     target: "*"
     max: 1
+  add-labels:
+    allowed: [NEEDS-ACTION]
+    target: "*"
+    max: 1
+  remove-labels:
+    allowed: [NEEDS-ACTION]
+    target: "*"
+    max: 1
 
 network:
   allowed:
@@ -145,6 +153,43 @@ never fall back to an earlier week's date to "catch up" on a missed Monday.
 `create-issue` — do **not** fall back to `noop` because the GitHub MCP server or
 another tool encountered a recoverable error during report generation. A partial
 report with `⚠️ Data unavailable` notes is still a publishable report.
+
+## `NEEDS-ACTION` Label
+
+When the published report contains one or more entries in the **🚨 Action Items**
+section (i.e., the section is not just "_No action items this week._"), the
+issue must carry the `NEEDS-ACTION` label. When the section is empty, the label
+must not be present.
+
+How to apply, depending on which publishing path you take:
+
+- **Creating a new issue** (`create_issue` — the normal weekly path): include
+  `NEEDS-ACTION` in the `labels` array of the `create_issue` call when the
+  condition above is met. The configured base labels (`automation`, `area-mcp`)
+  are **merged** with this list automatically — do **not** repeat them. When
+  the condition is not met, omit the `labels` field (or pass an empty array).
+
+  ```json
+  {
+    "type": "create_issue",
+    "title": "[MCP: SEP Tracker] Week of YYYY-MM-DD",
+    "body": "...",
+    "labels": ["NEEDS-ACTION"]
+  }
+  ```
+
+  This is the only label-application path needed for the standard weekly run,
+  because the agent does not receive the new issue number back from
+  `create_issue` (the safe-outputs job assigns it post-agent).
+
+- **Add / remove on a known existing issue** (`add_labels` / `remove_labels`):
+  these tools are available for scenarios where the agent already has a
+  specific issue number (`item_number`) — for example, a future workflow
+  variant that updates an in-flight issue. They are restricted to the single
+  `NEEDS-ACTION` label by the safe-outputs config. **Do not** use these tools
+  to discover or modify pre-existing SEP-tracker issues — that would conflict
+  with the constraints below (no `search_issues` / `list_issues` /
+  `update-issue` against existing issues in the standard weekly flow).
 
 ## Constraints
 

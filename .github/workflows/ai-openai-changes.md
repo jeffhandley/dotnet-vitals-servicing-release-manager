@@ -32,6 +32,14 @@ safe-outputs:
     title-prefix: "[AI: OpenAI Changes] "
     target: "*"
     max: 1
+  add-labels:
+    allowed: [NEEDS-ACTION]
+    target: "*"
+    max: 1
+  remove-labels:
+    allowed: [NEEDS-ACTION]
+    target: "*"
+    max: 1
 
 network:
   allowed:
@@ -152,6 +160,53 @@ title; because no issue with that title exists yet, the `create-issue` safe-outp
 create it on that day instead, and `close-older-issues` will still close prior weeks'
 issues at that point. Always compute the title from the current week's Monday — never
 fall back to an earlier week's date to "catch up."
+
+## `NEEDS-ACTION` Label
+
+The published issue must be tagged with the `NEEDS-ACTION` label whenever the
+**Upcoming Changes & Compensating Changes Required** table contains one or more
+🔴 (breaking — compensating change required) or 🟡 (may require integration
+update) rows. When the table contains only 🟢 (opportunity only) rows or is
+empty / "no upcoming PRs require compensating changes", the label must **not**
+be present.
+
+How to apply, depending on which publishing path you take:
+
+- **Creating a new issue** (`create_issue` — typically Monday's run, or any day
+  when no `Week of <Monday>` issue exists yet): include `NEEDS-ACTION` in the
+  `labels` array of the `create_issue` call when the condition above is met.
+  The configured base labels (`automation`, `area-ai`) are **merged** with this
+  list automatically — do **not** repeat them. When the condition is not met,
+  omit the `labels` field entirely so the issue is created with only the base
+  labels.
+
+  ```json
+  {
+    "type": "create_issue",
+    "title": "[AI: OpenAI Changes] Week of YYYY-MM-DD",
+    "body": "...",
+    "labels": ["NEEDS-ACTION"]
+  }
+  ```
+
+- **Updating an existing issue** (`update_issue` — Tuesday through Sunday's
+  runs that find the current week's issue already created): do **not** pass a
+  `labels` field on `update_issue` (it would replace, not append, the issue's
+  labels). Instead, manage the `NEEDS-ACTION` label as a separate operation on
+  the same `item_number` you used for `update_issue`:
+
+  - If the condition above is **met**, request `add_labels` with
+    `{"labels": ["NEEDS-ACTION"], "item_number": <the issue number>}`. This is
+    safe even if the label is already present — GitHub treats the request as
+    idempotent.
+  - If the condition above is **not** met, request `remove_labels` with
+    `{"labels": ["NEEDS-ACTION"], "item_number": <the issue number>}` so the
+    label does not linger from a prior day's run when the breaking-change set
+    has since been resolved. If the label is not present, the request is a
+    no-op.
+
+Always evaluate the condition against the **current** report contents (today's
+analysis) — never carry forward yesterday's label state by inspection.
 
 ## Scope of Analysis
 

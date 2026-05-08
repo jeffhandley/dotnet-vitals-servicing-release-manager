@@ -89,10 +89,19 @@ The report must follow this structure. Use the current New York date for `{YYYY-
 ## 🚨 Action Items
 
 {SEPs requiring maintainer attention — ratified but not tracked in C# SDK, or
-nearing ratification with no implementation planning.}
+nearing ratification with no implementation planning. If there are no items,
+write "_No action items this week._" — do **not** invent filler entries.}
 
 - **SEP-{N}** ({title}): {action needed and why}
 - ...
+
+> 🏷️ **Labeling rule (enforced by the calling workflow):** when this section
+> contains one or more action-item bullets, the published issue must also carry
+> the `NEEDS-ACTION` label. When the section reads "_No action items this
+> week._" (or is otherwise empty), the label must be omitted. The workflow
+> instructs how to apply the label via the `create_issue` request (and exposes
+> `add_labels` / `remove_labels` for any scenario where the issue number is
+> already known).
 
 ---
 
