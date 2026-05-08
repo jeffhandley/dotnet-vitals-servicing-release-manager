@@ -14,7 +14,7 @@ description: >-
 
 This skill provides a complete reference for building, securing, and maintaining GitHub Agentic Workflows. It covers the gh-aw platform's architecture, security model, and all available features.
 
-> **Version baseline:** This guide covers features through **v0.71.1**. A fresh `gh extension install github/gh-aw` gets the latest release. Features introduced after v0.68.3 are marked with their minimum version (e.g., `(v0.70.0+)`). Verify your compiler version with `gh aw --version` and upgrade if needed: `gh extension install github/gh-aw --pin <version>`.
+> **Version baseline:** This guide covers features through **v0.71.5** (latest stable). A fresh `gh extension install github/gh-aw` installs v0.71.5. Verify your compiler version with `gh aw --version` and upgrade if needed: `gh extension install github/gh-aw --pin <version>`.
 
 ## Quick Start
 
@@ -43,6 +43,8 @@ gh aw audit <run-id>          # Analyze a completed workflow run
 gh aw logs <name>             # View execution logs
 gh aw logs --filtered-integrity  # Inspect DIFC_FILTERED integrity events
 gh aw upgrade                 # Upgrade gh-aw CLI extension
+gh aw experiments             # Read A/B experiment state (v0.71.5+)
+gh aw experiments analyze     # Statistical analysis of experiment results (v0.71.5+)
 ```
 
 **`gh aw trial`** — Test workflows that aren't on main yet. Creates a temporary private repo, installs the workflow, and runs it. Essential for validating new workflows before merge, since `workflow_dispatch` requires the lock file on the default branch.
@@ -81,11 +83,11 @@ gh aw upgrade                 # Upgrade gh-aw CLI extension
 | Custom post-processing jobs for agent output | `safe-outputs.jobs:` custom jobs with MCP tool access | [Custom Safe Outputs](https://github.github.com/gh-aw/reference/custom-safe-outputs/) |
 | Wrapping GitHub Actions as agent-callable tools | `safe-outputs.actions:` action wrappers | [Custom Safe Outputs](https://github.github.com/gh-aw/reference/custom-safe-outputs/) |
 | Triggering CI on agent-created PRs | `github-token-for-extra-empty-commit:` on `create-pull-request` | [Triggering CI](https://github.github.com/gh-aw/reference/triggering-ci/) |
-| No guard against agent approving PRs | `allowed-events: [COMMENT]` on `submit-pull-request-review`; or `[COMMENT, REQUEST_CHANGES]` with `supersede-older-reviews: true` (v0.69.3+) to auto-dismiss stale blocking reviews | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
-| Stale blocking reviews from previous `/review` runs | `supersede-older-reviews: true` (v0.69.3+) on `submit-pull-request-review` — dismisses older same-workflow `REQUEST_CHANGES` reviews after posting replacement | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
-| Merging PRs via shell `gh pr merge` in post-steps | `merge-pull-request` safe output (v0.70.0+) — executes in the safe-outputs job with proper permissions | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs/) |
+| No guard against agent approving PRs | `allowed-events: [COMMENT]` on `submit-pull-request-review`; or `[COMMENT, REQUEST_CHANGES]` with `supersede-older-reviews: true` to auto-dismiss stale blocking reviews | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
+| Stale blocking reviews from previous `/review` runs | `supersede-older-reviews: true` on `submit-pull-request-review` — dismisses older same-workflow `REQUEST_CHANGES` reviews after posting replacement | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
+| Merging PRs via shell `gh pr merge` in post-steps | `merge-pull-request` safe output — executes in the safe-outputs job with proper permissions | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs/) |
 | Manually updating existing bot comments (delete + repost) | `hide-older-comments: true` on `add-comment` — collapses previous comments before posting new | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs/) |
-| Keeping PR branch up-to-date with base manually | `update-branch: true` on `update-pull-request` (v0.69.0+) — merges latest base into PR branch | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
+| Keeping PR branch up-to-date with base manually | `update-branch: true` on `update-pull-request` — merges latest base into PR branch | [Safe Outputs](https://github.github.com/gh-aw/reference/safe-outputs-pull-requests/) |
 | Configuring the GitHub CLI proxy mode | `tools.github.mode: gh-proxy` — official config; old `cli-proxy` feature flag is deprecated | [Engines](https://github.github.com/gh-aw/reference/engines/) |
 | `slash_command:` without `events:` filter (subscribes to ALL comment events) | `events: [pull_request_comment]` or `events: [issue_comment]` | [Command Triggers](https://github.github.com/gh-aw/reference/command-triggers/) |
 | `cancel-in-progress: true` on `slash_command:` workflows | `cancel-in-progress: false` — non-matching events cancel in-progress agent runs | [Concurrency](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-concurrency) |
@@ -289,10 +291,10 @@ safe-outputs:
     allowed-events: [COMMENT]
     # Or allow REQUEST_CHANGES with supersede to auto-dismiss stale blocking reviews:
     # allowed-events: [COMMENT, REQUEST_CHANGES]
-    # supersede-older-reviews: true  # (v0.69.3+)
+    # supersede-older-reviews: true
 ```
 
-> **`supersede-older-reviews: true` (v0.69.3+)** — When using `REQUEST_CHANGES`, set this to automatically dismiss older blocking reviews from the same workflow after posting a replacement. This solves the stale-review problem: without it, a `REQUEST_CHANGES` review persists even after the author fixes everything and re-runs `/review`, because gh-aw has no `dismiss-pull-request-review` safe output and the compiler rejects `pull-requests: write`. With `supersede-older-reviews`, the new review replaces the old one (best-effort). This makes `[COMMENT, REQUEST_CHANGES]` a viable option alongside `[COMMENT]`-only.
+> **`supersede-older-reviews: true`** — When using `REQUEST_CHANGES`, set this to automatically dismiss older blocking reviews from the same workflow after posting a replacement. This solves the stale-review problem: without it, a `REQUEST_CHANGES` review persists even after the author fixes everything and re-runs `/review`, because gh-aw has no `dismiss-pull-request-review` safe output and the compiler rejects `pull-requests: write`. With `supersede-older-reviews`, the new review replaces the old one (best-effort). This makes `[COMMENT, REQUEST_CHANGES]` a viable option alongside `[COMMENT]`-only.
 
 **3. Integrity filtering** — controls what content the agent can **see** (vs. `roles:` which controls who can **trigger**). The MCP gateway intercepts GitHub tool calls and filters content by author trust level before the AI engine sees it. Filtered items are logged as `DIFC_FILTERED` events — inspect them with `gh aw logs --filtered-integrity`.
 
@@ -330,7 +332,7 @@ tools:
 
 **Effective integrity computation order:** An item's final integrity level is determined by (highest wins): `blocked-users` (forced deny) → `trusted-users` (forced `approved`) → `approval-labels` (promote to `approved`) → endorsement/disapproval reactions (see below) → author association default.
 
-**Reaction-based integrity (v0.68.2+, `features.integrity-reactions: true`):** Reactions on issues/PRs/comments can dynamically promote or demote integrity:
+**Reaction-based integrity (`features.integrity-reactions: true`):** Reactions on issues/PRs/comments can dynamically promote or demote integrity:
 
 ```yaml
 features:
@@ -367,7 +369,7 @@ safe-outputs:
 
 **5. Fork PR checkout for `workflow_dispatch`** — the platform's `checkout_pr_branch.cjs` is skipped for `workflow_dispatch`, so you must implement a checkout step that verifies write access, rejects fork PRs, and restores trusted `.github/` from the base branch. See the [Fork PR Checkout](#fork-pr-checkout-workflow_dispatch) pattern above for a complete example.
 
-**6. XPIA hardening (v0.70.0+)** — Cross-prompt injection (XPIA) sanitization paths have been hardened. `disable-xpia-prompt` is now **rejected at compile time in strict mode** — do not use it. If a workflow previously relied on it, remove the flag; the runtime handles XPIA protection by default.
+**6. XPIA hardening** — Cross-prompt injection (XPIA) sanitization paths have been hardened. `disable-xpia-prompt` is now **rejected at compile time in strict mode** — do not use it. If a workflow previously relied on it, remove the flag; the runtime handles XPIA protection by default.
 
 ### Idempotency and the Edited-Comment Time-Bomb
 
@@ -476,14 +478,14 @@ imports:                     # APM package dependencies
 
 on:
   needs: pre_activation       # Declare dependency on a custom pre_activation job for credential supply
-                              # Enables sourcing GitHub App credentials from upstream job outputs (v0.70.0+)
+                              # Enables sourcing GitHub App credentials from upstream job outputs
 ```
 
-**`on.needs:` (v0.70.0+)** — Express dependencies on custom `pre_activation`/`activation` jobs, enabling GitHub App credentials to be sourced from upstream job outputs. See also `safe-outputs.needs` (v0.69.1+) for credential-supply dependencies in the safe-outputs job.
+**`on.needs:`** — Express dependencies on custom `pre_activation`/`activation` jobs, enabling GitHub App credentials to be sourced from upstream job outputs. See also `safe-outputs.needs` for credential-supply dependencies in the safe-outputs job.
 
-**`merge-pull-request` safe output (v0.70.0+)** — Merge a PR directly as a safe output. Executes in the safe-outputs job with proper write permissions, not inside the agent container.
+**`merge-pull-request` safe output** — Merge a PR directly as a safe output. Executes in the safe-outputs job with proper write permissions, not inside the agent container.
 
-**`tools.github.mode: gh-proxy` (v0.70.0+)** — Configure the GitHub CLI proxy feature. The deprecated `cli-proxy` feature flag is scheduled for removal; migrate to this form:
+**`tools.github.mode: gh-proxy`** — Configure the GitHub CLI proxy feature. The deprecated `cli-proxy` feature flag is scheduled for removal; migrate to this form:
 
 ```yaml
 tools:
@@ -491,23 +493,95 @@ tools:
     mode: gh-proxy
 ```
 
-**Claude engine (v0.71.0+)** — The Claude engine has two permission modes: `acceptEdits` (default — agent proposes edits that the safe-outputs layer validates) and `bypassPermissions` (activated when unrestricted bash `bash: "*"` is granted — agent executes directly). v0.71.0 updated the internal wiring; recompile Claude-engine workflows compiled with older versions.
+**Claude engine** — The Claude engine has two permission modes: `acceptEdits` (default — agent proposes edits that the safe-outputs layer validates) and `bypassPermissions` (activated when unrestricted bash `bash: "*"` is granted — agent executes directly). v0.71.5 fixed a stability issue where `CLAUDE_CODE_DISABLE_FAST_MODE=1` is now set automatically to suppress an incompatible server-side flag introduced in Claude Code 2.1.120+.
+
+**`engine.bare` frontmatter field (v0.68.1+)** — Disable automatic context loading for supported engines, giving full control over what the AI agent sees. Use `bare: true` with `copilot` (suppresses `AGENTS.md` and user instructions) or `claude` (suppresses `CLAUDE.md` memory files). Also supported by `codex` and `gemini`. Unsupported engines emit a compiler warning.
+
+**`engine.mcp` import support (v0.71.5+)** — `engine.mcp.tool-timeout` and `session-timeout` can now be imported from shared workflows. Previously these were only configurable in the top-level workflow.
+
+**`small` model alias for sub-agents** — Inline sub-agent blocks use the `small` model alias by default, reducing cost and latency for lightweight agent tasks.
+
+**A/B experimentation infrastructure (v0.71.5+)** — Full experiment lifecycle: define variants, run round-robin, collect per-run state, and analyze results statistically. New commands: `gh aw experiments` (read state from storage branches) and `gh aw experiments analyze` (significance testing, sample-size tracking). Experiment state can be stored in cache or a dedicated repo branch.
+
+**`pre-steps:` frontmatter field** — Inject steps that run _before_ checkout and the agent, inside the same job. Recommended for token-minting actions (e.g., `actions/create-github-app-token`, `octo-sts`) for cross-repo checkout. The minted token stays in the same job, avoiding the masking issue when crossing job boundaries.
+
+**Model-not-supported detection (v0.68.3+)** — When a model is unavailable or not supported by your Copilot plan, the workflow stops retrying and surfaces a clear error instead of spinning indefinitely.
+
+**`checkout` field in shared imports (v0.68.3+)** — Shared importable workflows now support a `checkout` field for controlling which ref is checked out during import.
+
+**`env:` field in shared imports (v0.68.3+)** — Shared importable workflows now support an `env:` field for passing environment variables to imported workflows.
+
+**`push-to-pull-request-branch` target-repo fix (v0.71.5+)** — The compiler now correctly honors the `target-repo` field in shared PR checkout steps for `push-to-pull-request-branch`.
+
+**Bundle mode for safe-output patches (v0.71.5+)** — Bundle mode is now the default for safe-output patch packaging.
+
+**`allow-bot-authored-trigger-comment` (v0.71.5+)** — For bots that don't follow the standard `[bot]` naming convention, opt into the confused-deputy bypass explicitly:
+
+```yaml
+on:
+  issue_comment:
+    types: [edited]
+  allow-bot-authored-trigger-comment: true
+```
+
+Standard `[bot]`-authored comments are auto-detected and bypass the confused-deputy guard without this flag.
+
+**`engine.env` fixes (v0.71.5+)** — Multi-line block-scalar `engine.env` values (written with `>-`) now compile correctly. Custom job references in `engine.env` values (e.g., `${{ needs.my_job.outputs.value }}`) are now wired into the agent job's `needs` list.
+
+**`report_incomplete` safe output (v0.67.1+)** — Report incomplete work as a safe output when the agent runs out of turns or budget before finishing.
+
+**`checks` MCP tool (v0.67.1+)** — `checks` is available as a first-class MCP tool in the gh-aw MCP server, alongside `pull_requests`, `repos`, `issues`, etc.
 
 **`checkout: false`** — Skip the default repository checkout when the workflow doesn't need source code (e.g., ChatOps commands that only call APIs via `web-fetch`). Saves ~10-30s of runner time.
 
 **`engine.max-turns`** — Limit the number of turns the agent can take. Set in the engine block: `engine: { id: copilot, max-turns: 15 }`. Preserved through shared imports (fixed in v0.68.3).
 
-**Available engines:** `copilot` (default), `claude`, `codex`, `crush` (v0.69.0+, replaces OpenCode), `gemini`. See [Engines reference](https://github.github.com/gh-aw/reference/engines/).
+**Available engines:** `copilot` (default), `claude`, `codex`, `gemini`, `crush` (experimental), `opencode` (experimental). See [Engines reference](https://github.github.com/gh-aw/reference/engines/).
 
-**Available tools:** `web-fetch` (fetch URLs), `bash` (shell commands), GitHub MCP toolsets (`pull_requests`, `repos`, `issues`, etc.). Use `tools: [web-fetch]` for workflows that call external APIs.
+**Engine feature comparison:**
 
-**MCP config location:** `.github/mcp.json` (v0.68.5+ — previously `.mcp.json` at repo root). Migrate existing configs manually.
+| Feature | Copilot | Claude | Codex | Gemini | Crush | OpenCode |
+|---------|---------|--------|-------|--------|-------|----------|
+| `max-turns` | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| `max-continuations` | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `engine.agent` (custom agent) | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `engine.bare` (disable context) | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| `engine.harness` (custom harness) | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Tools allowlist | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
 
-**`vulnerability-alerts` permission (v0.69.3+)** — Available as a `GITHUB_TOKEN` permission scope for workflows that need to read security alerts.
+**Available tools:** `web-fetch` (fetch URLs), `bash` (shell commands), `checks` (CI check runs), GitHub MCP toolsets (`pull_requests`, `repos`, `issues`, etc.). Use `tools: [web-fetch]` for workflows that call external APIs.
+
+**MCP config location:** `.github/mcp.json` (previously `.mcp.json` at repo root). Migrate existing configs manually.
+
+**`vulnerability-alerts` permission** — Available as a `GITHUB_TOKEN` permission scope for workflows that need to read security alerts.
+
+### Observability (OTLP)
+
+gh-aw supports OpenTelemetry trace export for workflow observability:
+
+```yaml
+observability:
+  otlp:
+    endpoint: ${{ secrets.OTLP_ENDPOINT }}
+    headers:
+      Authorization: "Bearer ${{ secrets.OTLP_TOKEN }}"
+```
+
+Traces include per-job spans with timing, token usage breakdowns, GitHub API rate-limit analytics, and Time Between Turns (TBT) metrics. Use `gh aw audit <run-id>` to view per-run analytics including TBT and API consumption charts. The `gh aw logs` command also surfaces rate-limit data.
+
+### Security Hardening
+
+**NFKC normalization + homoglyph detection (v0.67.4+)** — SafeOutputs infrastructure detects Unicode homoglyph attacks (e.g., Cyrillic characters disguised as Latin) via NFKC normalization, preventing safe-output key spoofing.
+
+**Token injection hardening (v0.67.1+)** — Secrets are injected via `env:` blocks rather than inline `run:` interpolation, reducing exposure to shell injection.
+
+**`--safe-update` renamed to `--approve` (v0.68.3+)** — The `gh aw --safe-update` CLI flag was renamed to `--approve` for clarity.
 
 ### Breaking Changes
 
-**`network.firewall` removed (v0.69.2)** — This deprecated frontmatter key is now rejected by the compiler. Migrate with: `gh aw fix --write`.
+**`network.firewall` removed** — This deprecated frontmatter key is now rejected by the compiler. Migrate with: `gh aw fix --write`.
+
+**`add-comment.discussion` (singular) removed** — Use `discussions: true/false` syntax instead. Migrate with: `gh aw fix --write`.
 
 Supported runtimes: `node`, `python`, `go`, `uv`, `bun`, `deno`, `ruby`, `java`, `dotnet`, `elixir`.
 
