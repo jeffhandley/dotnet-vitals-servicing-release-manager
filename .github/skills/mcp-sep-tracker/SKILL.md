@@ -64,11 +64,21 @@ For each SEP (active and recently ratified):
 3. **For ratified SEPs not yet tracked**, flag as an action item — the C# SDK may need a tracking issue.
 4. **For active SEPs nearing ratification** (approved/awaiting merge), note whether the C# SDK should begin implementation planning.
 
-### Step 5: Cross-SDK Implementation Status
+### Step 5: Conformance Test Coverage
+
+For each SEP (active and recently ratified), check `modelcontextprotocol/conformance` for tests that align to the SEP:
+
+1. Search for references to the SEP number in conformance issues, PRs, and test files.
+2. Classify conformance coverage as:
+   - **Yes** — conformance tests clearly cover SEP behavior
+   - **No** — no conformance test coverage found
+   - **Unknown** — insufficient evidence (for example, data unavailable)
+
+### Step 6: Cross-SDK Implementation Status
 
 For Tier 1 SDKs (TypeScript, Python, Go), briefly check whether they have open issues or PRs referencing each active SEP. This provides context on whether the C# SDK is ahead of or behind peer SDKs in implementation readiness.
 
-### Step 6: Generate Report
+### Step 7: Generate Report
 
 Produce the report as GitHub-flavored markdown. Use the `edit` or file-writing tool — **do not use shell heredocs**.
 
@@ -107,9 +117,9 @@ write "_No action items this week._" — do **not** invent filler entries.}
 
 ## ✅ Recently Ratified SEPs (last 90 days)
 
-| SEP | Title | Merged | C# SDK Status |
-|---|---|---|---|
-| [SEP-{N}](url) | {Title} | {YYYY-MM-DD} | {Implemented / In Progress / Tracked / Not Yet Tracked} |
+| SEP | Title | Merged | Conformance Tests | C# SDK Status |
+|---|---|---|---|---|
+| [SEP-{N}](url) | {Title} | {YYYY-MM-DD} | {Yes / No / Unknown} | {Implemented / In Progress / Tracked / Not Yet Tracked} |
 
 {For each ratified SEP, a brief detail block:}
 
@@ -117,15 +127,16 @@ write "_No action items this week._" — do **not** invent filler entries.}
 
 - **Ratified:** {YYYY-MM-DD}
 - **Summary:** {1-2 sentences on what changed in the protocol}
+- **Conformance tests:** {Yes / No / Unknown, with reference if found}
 - **C# SDK impact:** {implementation status and next steps}
 
 ---
 
 ## 📊 Active SEPs
 
-| SEP | Title | Author | Status | Last Activity | C# SDK Status |
-|---|---|---|---|---|---|
-| [SEP-{N}](url) | {Title} | @{author} | {Draft / In Review / Approved / Stalled} | {date} | {Implemented / In Progress / Tracked / Not Yet Tracked / N/A} |
+| SEP | Title | Author | Status | Conformance Tests | Last Activity | C# SDK Status |
+|---|---|---|---|---|---|---|
+| [SEP-{N}](url) | {Title} | @{author} | {Draft / In Review / Approved / Stalled} | {Yes / No / Unknown} | {date} | {Implemented / In Progress / Tracked / Not Yet Tracked / N/A} |
 
 {For each SEP with notable findings, a detail block:}
 
@@ -134,6 +145,7 @@ write "_No action items this week._" — do **not** invent filler entries.}
 - **Status:** {ratification status with brief explanation}
 - **Scope:** {minor clarification / new capability / breaking change}
 - **Key discussion points:** {1-2 bullets on blocking concerns or open questions}
+- **Conformance tests:** {current coverage status and any relevant links}
 - **C# SDK impact:** {what needs to happen in the C# SDK, with issue/PR links if they exist}
 - **Peer SDK status:** {TypeScript: tracked, Python: implemented, Go: not yet tracked}
 

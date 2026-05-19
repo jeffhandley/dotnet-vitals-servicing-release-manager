@@ -108,6 +108,8 @@ Track Specification Enhancement Proposals (SEPs) in the MCP specification reposi
 
 Read and follow `.github/skills/mcp-sep-tracker/SKILL.md` and any files it references. Treat those local files as the source of truth for the SEP tracking procedure and report structure.
 
+The report must include a conformance-test check against `modelcontextprotocol/conformance` for every SEP listed in the report tables, and the tables must show this status clearly.
+
 > ⚠️ **Workflow file overrides skill content.** The publishing contract, file paths, and title format defined in this workflow take precedence over any conflicting guidance in the skill or its references.
 
 ## Error Handling
