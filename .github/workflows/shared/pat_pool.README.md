@@ -1,8 +1,8 @@
 # PAT Pool
 
-Selects a random Copilot PAT from a numbered pool of secrets. This addresses limitations that arise from having a single PAT shared across all agentic workflows, such as rate-limiting.
+Selects a random Copilot PAT from a numbered pool of secrets within an isolated GitHub environment. This addresses limitations that arise from having a single PAT shared across all agentic workflows, such as rate-limiting, while also preventing agentic workflows' access to secrets in other environments.
 
-**This is a stop-gap workaround.** As soon as organization/enterprise billing is offered for agentic workflows, this approach will be removed from our workflows.
+**This is a stop-gap workaround.** As soon as organization/enterprise billing is available to the dotnet org, this approach will be removed from our workflows.
 
 ## Repository Onboarding
 
@@ -21,7 +21,15 @@ gh aw --version
 
 ## PAT Management
 
-Team members provide PATs into the pools for the repository by adding them as repository secrets with secret names matching the pattern of `<pool_name>_<0-9>`, such as `COPILOT_PAT_0`.
+Team members provide PATs into the pools for the repository by adding them as **environment** secrets with secret names matching the pattern of `{pool-name}_{0-9}`, such as `COPILOT_PAT_0`.
+
+### Environment
+
+Create an environment for the agentic workflows:
+  - _Configuring these settings requires repo admin permission_
+  - https://github.com/dotnet/{repo}/settings/environments
+  - Recommended Name: **copilot-pat-pool**
+  - Recommended Deployment branches and tags: **Protected branches only** (only allowing access to the PAT pool from protected branches, thus blocking agentic workflows from running on other branches).
 
 [Use this link to prefill the PAT creation form with the required settings][create-pat]:
 
@@ -34,11 +42,13 @@ The **Token Name** _does not_ need to match the secret name and is only visible 
 
 Team members providing PATs for workflows should set weekly recurring reminders to regenerate and update their PATs in the repository secrets. With an 8-day expiration, renewal can be done on the same day each week.
 
-PATs are added to repositories through the **Settings > Secrets and variables > Actions** UI, saved as **Repository secrets** and matching the `<pool_name>_<0-9>` naming convention. This can also be done using the GitHub CLI.
+PATs are added to repositories through the **Environment Secrets** settings page for the environment created above. _This also requires repo admin permission_.
 
-```sh
-gh aw secrets set "<pool_name>_<0-9>" --value "<your-github-pat>" --repo <org>/<repo>
-```
+* **Settings** >
+   * **Environments** >
+      * **copilot-pat-pool** (or other environment name) >
+         * **Add environment secret** (or edit your existing secret)
+            * Enter your secret name of `COPILOT_PAT_{0-9}` and paste in your PAT
 
 ## Workflow Output Attribution
 
@@ -72,7 +82,7 @@ engine:
         needs.pat_pool.outputs.pat_number == '7', secrets.COPILOT_PAT_7,
         needs.pat_pool.outputs.pat_number == '8', secrets.COPILOT_PAT_8,
         needs.pat_pool.outputs.pat_number == '9', secrets.COPILOT_PAT_9,
-        secrets.COPILOT_GITHUB_TOKEN)
+        'NO COPILOT PAT AVAILABLE')
       }}
 ```
 
@@ -101,7 +111,7 @@ The secrets passed via `with:` must match the secrets referenced in the consumin
 engine:
   id: copilot
   env:
-    COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.MY_TEAM_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.MY_TEAM_PAT_1, ..., secrets.COPILOT_GITHUB_TOKEN) }}
+    COPILOT_GITHUB_TOKEN: ${{ case(needs.pat_pool.outputs.pat_number == '0', secrets.MY_TEAM_PAT_0, needs.pat_pool.outputs.pat_number == '1', secrets.MY_TEAM_PAT_1, ..., 'NO COPILOT PAT AVAILABLE') }}
 ```
 
 This approach aligns with GitHub's documented guidance for [passing secrets][passing-secrets] between workflows, where the `pat_pool` job returns a PAT number and the `case` statement acts as a secret store to look the PAT secret up based on the selected number.
