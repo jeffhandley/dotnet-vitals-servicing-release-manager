@@ -12,22 +12,23 @@ on:
   schedule: "daily"
   workflow_dispatch:
     inputs:
-      target_repo:
-        description: "Optional: owner/repo of an explicit issue/PR whose repro to verify (any repo)."
-        required: false
-        type: string
-      target_number:
-        description: "Optional: the explicit issue/PR number in target_repo."
+      target:
+        description: "Optional: an explicit issue/PR as org/repo#number to verify (any repo)."
         required: false
         type: string
       baseline_sdk:
-        description: "Optional: baseline SDK version (expected buggy) for explicit verification."
+        description: "Optional: baseline SDK (expected buggy). Empty = auto-discover the prior GA."
         required: false
         type: string
       candidate_sdk:
-        description: "Optional: candidate SDK version (expected fixed) for explicit verification."
+        description: "Optional: candidate SDK (expected fixed). Empty = auto-discover the version the fix is in."
         required: false
         type: string
+      post_to_target:
+        description: "Manual-only: also post the verdict as a comment on the target issue/PR in its home repo."
+        required: false
+        type: boolean
+        default: false
       managed_repo:
         description: "Optional: a single managed-repo key to handle (e.g. runtime). Empty = all enabled."
         required: false
@@ -104,6 +105,9 @@ safe-outputs:
   update-issue:
     target: "*"
     max: 3
+  add-comment:
+    target: "*"
+    max: 3
   upload-artifact:
     max-uploads: 3
     retention-days: 30
@@ -125,10 +129,17 @@ repos cross-repo; you **record** results only here, by updating the per-fix trac
 
 ## Mode
 
-- **Explicit verification** -- if `target_repo` + `target_number` + `baseline_sdk` + `candidate_sdk`
-  are set, verify that issue/PR's repro across the two supplied SDKs (no fix-flow detection); record/
-  update its per-fix tracking issue. Then skip to *For each fix ready to verify*.
+- **Explicit verification** -- if `target` (`org/repo#number`) is set, verify that issue/PR's repro.
+  `baseline_sdk` and `candidate_sdk` are used if given; otherwise **auto-discover** -- candidate = the
+  version the fix is in (fix-flow detection / next release), baseline = the prior version that lacks it.
+  Then skip to *For each fix ready to verify*.
 - **Servicing scan** -- otherwise, scan the managed repos below.
+
+**Cross-repo posting (manual only).** If `${{ github.event.inputs.post_to_target }}` is `true` **and**
+this is `workflow_dispatch`, also post the verdict as a comment on the target issue/PR via the
+**add-comment** safe-output (set its repo to the home repo from `target`). Cross-repo posting requires
+`GH_AW_GITHUB_MCP_SERVER_TOKEN` to be a PAT with write to the home repo; the agent never receives it.
+On schedules never post cross-repo -- only update the tracking issue here.
 
 ## Managed repositories (servicing scan)
 

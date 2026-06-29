@@ -12,18 +12,19 @@ on:
   schedule: "hourly"
   workflow_dispatch:
     inputs:
-      target_repo:
-        description: "Optional: owner/repo of an explicit issue/PR to repro (any repo). Empty = servicing scan."
-        required: false
-        type: string
-      target_number:
-        description: "Optional: the explicit issue or PR number in target_repo (walks backport->main->issue)."
+      target:
+        description: "Optional: an explicit issue/PR as org/repo#number (any repo). Empty = servicing scan."
         required: false
         type: string
       baseline_sdk:
-        description: "Optional: baseline SDK version/selector for an explicit target (else latest GA of the major)."
+        description: "Optional: baseline SDK version for an explicit target (else auto-discover latest GA of the major)."
         required: false
         type: string
+      post_to_target:
+        description: "Manual-only: also post the repro as a comment on the target issue/PR in its home repo."
+        required: false
+        type: boolean
+        default: false
       managed_repo:
         description: "Optional: a single managed-repo key to handle (e.g. runtime). Empty = all enabled."
         required: false
@@ -104,6 +105,9 @@ safe-outputs:
     title-prefix: "[Servicing] "
     labels: [automation, area-servicing]
     max: 3
+  add-comment:
+    target: "*"
+    max: 3
   upload-artifact:
     max-uploads: 3
     retention-days: 30
@@ -126,11 +130,17 @@ You **read** repos cross-repo; you **record** results only here, as tracking iss
 
 ## Mode
 
-- **Explicit target** -- if `target_repo` + `target_number` are set, build a repro for that single
-  issue/PR in any repo (no servicing classification). Walk a backport PR to its `main` PR and the
-  linked issue. Baseline SDK = `baseline_sdk` if given, else the latest GA of the relevant major. This
-  needs no registry/plugin. Then go to *For each selected PR*.
+- **Explicit target** -- if `target` (`org/repo#number`) is set, build a repro for that single issue/PR
+  in any repo (no servicing classification). Walk a backport PR to its `main` PR and the linked issue.
+  Baseline SDK = `baseline_sdk` if given, else **auto-discover** the latest GA of the relevant major.
+  This needs no registry/plugin. Then go to *For each selected PR*.
 - **Servicing scan** -- otherwise, scan the managed repos below.
+
+**Cross-repo posting (manual only).** If `${{ github.event.inputs.post_to_target }}` is `true` **and**
+this is a `workflow_dispatch` run, additionally post the repro as a comment on the target issue/PR via
+the **add-comment** safe-output (set its repo to the home repo from `target`). Cross-repo posting
+requires `GH_AW_GITHUB_MCP_SERVER_TOKEN` to be a PAT with write to the home repo; the agent never
+receives that token. On schedules never post cross-repo -- only record here.
 
 ## Managed repositories (servicing scan)
 
