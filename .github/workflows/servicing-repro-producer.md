@@ -130,7 +130,7 @@ You **read** repos cross-repo; you **record** results only here, as tracking iss
 
 ## Mode
 
-- **Explicit target** -- if `target` (`org/repo#number`) is set, build a repro for that single issue/PR
+- **Explicit target (takes precedence)** -- if `target` (`org/repo#number`) is set, handle ONLY it and do NOT scan; build a repro for that single issue/PR
   in any repo (no servicing classification). Walk a backport PR to its `main` PR and the linked issue.
   Baseline SDK = `baseline_sdk` if given, else **auto-discover** the latest GA of the relevant major.
   This needs no registry/plugin. Then go to *For each selected PR*.

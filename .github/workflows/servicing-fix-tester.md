@@ -129,7 +129,7 @@ repos cross-repo; you **record** results only here, by updating the per-fix trac
 
 ## Mode
 
-- **Explicit verification** -- if `target` (`org/repo#number`) is set, verify that issue/PR's repro.
+- **Explicit verification (takes precedence)** -- if `target` (`org/repo#number`) is set, handle ONLY it and do NOT scan; verify that issue/PR's repro.
   `baseline_sdk` and `candidate_sdk` are used if given; otherwise **auto-discover** -- candidate = the
   version the fix is in (fix-flow detection / next release), baseline = the prior version that lacks it.
   Then skip to *For each fix ready to verify*.
