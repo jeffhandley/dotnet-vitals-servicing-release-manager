@@ -57,16 +57,16 @@ It is used in two execution contexts that share all of the core logic below:
 4. **Determinism & isolation.** Install SDKs with `--install-dir` + `--no-path` (no global machine
    changes). Set `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1`,
    `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1`. Never modify any product repo or global SDK.
-5. **Sandbox-robust commands (workflow context).** When running inside an agentic workflow, the bash
-   harness gates ad-hoc network and complex shell, even for allow-listed tools: a bare `curl <url>`,
-   `;`-chained compound commands, and pipelines may be **denied**. Therefore:
+5. **The environment is online; the bash harness only gates *ad-hoc* shell.** The runner has full
+   network to the firewall-allowed dotnet domains: **`dotnet restore`/`dotnet test` fetch packages from
+   nuget.org**, and **`dotnet-install` installs any SDK** (including .NET 10) -- do not assume offline.
+   The harness only denies *bare* `curl <url>`, `;`-chained compounds, and long pipelines, so:
    - **Read GitHub-hosted data via the `github` MCP**, not `curl`: commit existence/ancestry
      (`get_commit`, compare) and raw files such as `dotnet/dotnet`'s `src/source-manifest.json`
      (`get_file_contents`). This is the robust primary path for fix-flow detection.
-   - **Check pre-provisioned SDKs first** (`dotnet --list-sdks`); the runner usually already has the
-     latest GA of each major, which is exactly the baseline. Only install when a needed SDK is absent.
-   - **Run installs through the script, not bare curl:** invoke `bash "$WORKDIR/dotnet-install.sh" …`
-     (a single, simple command); its internal downloads reach the firewall-allowed dotnet domains.
+   - **Check pre-provisioned SDKs first** (`dotnet --list-sdks`); install missing ones with
+     `bash "$WORKDIR/dotnet-install.sh" --version <ver> --install-dir … --no-path` (a single command).
+   - Online package restore is fine -- the **unit test (preferred)** and **file-based** forms work here.
    - Prefer **one simple command per step**; avoid `;`-chaining, inline `$(…)` you can replace by
      writing to a file and reading it back, and long pipelines.
    Interactively (Copilot CLI), these gates do not apply -- use whatever commands you need.
@@ -122,11 +122,14 @@ major.minor"). For servicing, the target is a `release/*` PR and the baseline is
 6. **Verify the bug reproduces.** Confirm `Actual` matches the buggy behavior (test fails / app prints
    the wrong result). If it does **not** reproduce, do not fabricate a result -- report that the bug
    could not be reproduced and what you tried, then stop.
-7. **Report.** Produce: which repro **form** was used, the isolating **code snippet**, the **Expected**
-   result, the **Actual** result (quoted from `output.log`), and the list of local artifacts
-   (`$WORKDIR` contents incl. `output.log`). Save this report as `"$WORKDIR/step-summary.md"` too. The
-   caller records it (a tracking issue in the monitoring repo, or an interactive report). **Never post
-   anything yourself.**
+7. **Detect regression** (see *Reference: regression detection*). Run the **same** repro on the oldest
+   in-support major. If the bug is absent there, it is a regression -- binary-search the in-support
+   versions (oldest first) to find the **oldest affected**; if present even on the oldest in-support
+   release, it is a long-standing (non-regression) bug. Record the result; do not block on it.
+8. **Report.** Produce: which repro **form** was used, the isolating **code snippet**, the **Expected**
+   result, the **Actual** result (quoted from `output.log`), the **regression** finding, and the list of
+   local artifacts (`$WORKDIR` contents incl. `output.log`). Save this as `"$WORKDIR/step-summary.md"`
+   too. The caller records it (a tracking issue, or an interactive report). **Never post anything.**
 
 ---
 
@@ -244,21 +247,28 @@ STATUS="$(gh api "repos/${OWNER}/${REPO}/compare/${RUNTIME_COMMIT}...${C}" --jq 
 After installing, an SDK's runtime commit is the first line of
 `shared/Microsoft.NETCore.App/<ver>/.version`.
 
+## Reference: regression detection
+
+A bug is a **regression** if it does not reproduce on an earlier still-supported major. In-support
+majors are at https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core (LTS = 3 yrs, STS
+= 18 mo from GA). Run the **same** repro on the latest GA of the **oldest** in-support major; if absent,
+**binary-search** the in-support majors (oldest first) to the oldest affected. If present on the oldest
+in-support major, it is long-standing, not a regression. Install each via `dotnet-install`.
+
 ## Reference: repro forms & output conventions
 
 - **Unit test (preferred).** `dotnet new xunit -o repro`; write one `[Fact]`/`[Theory]` that asserts
-  **Expected**. It fails on the buggy baseline and passes once fixed. Run with `dotnet test`. Reusable
-  across GA and daily SDKs (xunit/test-sdk packages are version-independent and on nuget.org).
-- **Minimal console csproj (most portable).** `dotnet new console -o repro` with
-  `<UseAppHost>false</UseAppHost>` (and no AOT/trim). It builds **offline** from the SDK's bundled
-  `Microsoft.NETCore.App.Ref`/`.Host` packs, so the **same** project runs on a GA baseline **and** on a
-  daily/servicing fixed SDK. Print `Expected: ...` / `Actual: ...`; optionally exit non-zero when buggy.
-  Pin `<TargetFramework>` to the target major (e.g. `net10.0`). Run framework-dependent:
-  `dotnet build -c Release` then `dotnet bin/Release/<tfm>/repro.dll`.
-- **File-based app (GA-only convenience).** A single `.cs` run via `dotnet run app.cs` (only on .NET
-  10+ SDKs). **Avoid for anything that will be fix-tested:** on a daily/servicing SDK it tries to
-  restore `Microsoft.DotNet.ILCompiler`/`Microsoft.NET.ILLink.Tasks` at the unreleased patch version
-  (absent from public feeds) and fails restore. Safe only when the run targets a public GA SDK.
+  **Expected**. It fails on the buggy baseline and passes once fixed. Run with `dotnet test` -- the
+  xunit/test-sdk packages restore from nuget.org online (this environment is online) and are version-
+  independent, so the same test runs on GA and daily SDKs.
+- **Minimal console csproj.** `dotnet new console -o repro` with `<UseAppHost>false</UseAppHost>` (no
+  AOT/trim). Builds from the SDK's bundled ref/host packs, so the **same** project runs on a GA baseline
+  and a daily/servicing SDK with no extra restore. Print `Expected:`/`Actual:`; optionally exit non-zero
+  when buggy. Pin `<TargetFramework>` to the target major. Run: `dotnet build -c Release` then
+  `dotnet bin/Release/<tfm>/repro.dll`. Use when a unit test isn't a clean fit.
+- **File-based app.** A single `.cs` run via `dotnet run app.cs` (needs a .NET 10+ SDK -- installable
+  via `dotnet-install`). Convenient for GA SDKs; for a daily/servicing fixed SDK prefer the unit test or
+  console csproj (a file-based app may try to restore ILLink/ILCompiler at the unreleased patch).
 - **Output.** Always capture combined stdout+stderr to `output.log` (Procedure A) or
   `output-<role>-<sdkversion>.log` (Procedure B). The report must quote the **Actual** result directly
   from these logs -- never paraphrase a result you did not capture.

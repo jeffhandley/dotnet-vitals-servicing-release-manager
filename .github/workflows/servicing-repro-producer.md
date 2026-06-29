@@ -185,11 +185,14 @@ Determine the target `MAJOR.MINOR` from the PR's base branch (per the plugin), t
    `servicing-repro-<KEY>-pr-<PR>` and path `$WORKDIR`.
 4. **Record a tracking issue** (if the bug reproduced). Call `create_issue` (the `[Servicing] ` prefix
    is added automatically) with a title like `<KEY> · <product-repo>#<PR> -- <short bug title>` and a
-   body containing, in order: (1) a link to the product-repo PR (canonical URL) and the target
-   major.minor; (2) a 1-2 sentence issue description; (3) which repro approach was used; (4) the
-   isolating code snippet; (5) **Expected Result**; (6) **Actual Result** (quoted from `output.log`);
-   (7) a link to the uploaded artifact; and (8) a **Fix verification: pending** line for the tester to
-   update later. (gh-aw appends a footer identifying this workflow.)
+   body whose first line is a level-2 heading **`## Minimal Repro -- <short bug title>`**, then, in
+   order: (1) a link to the product-repo PR/issue (canonical URL) and the target major.minor; (2) a
+   1-2 sentence issue description; (3) **Regression** -- whether it reproduces on an earlier in-support
+   release and, if so, the oldest affected (per *regression detection* in the skill); (4) which repro
+   approach was used; (5) the isolating code snippet; (6) **Expected Result**; (7) **Actual Result**
+   (quoted from `output.log`); (8) a link to the uploaded artifact; (9) a **Fix verification: pending**
+   line for the tester. When `post_to_target` cross-posts a comment, that comment also begins
+   **`## Minimal Repro`**. (gh-aw appends a footer identifying this workflow.)
 
 ## Finish
 
